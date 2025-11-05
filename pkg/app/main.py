@@ -3,7 +3,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
-
 from pkg.profiles import router as profiles_router
 from pkg.photo import router as photo_router
 from pkg.agent import router as agent_router
@@ -15,7 +14,7 @@ app = FastAPI(title="Mindlink API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "https://mindlink.vercel.app"], #"http://127.0.0.1:5173"
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
