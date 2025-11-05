@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+networkx
+matplotlib
+pandas
+langchain-community
+python-multipart
+langchain-openai
+requests
+pyjwt
+pillow
+langchain
+pyarrow
+faiss-cpu
+openai
