@@ -1,0 +1,34 @@
+{
+  "conversation": [
+    {
+      "role": "user",
+      "content": "Let's talk about this photo: /static/demo_user/Choco/processed/Memory_Retreival_Flow.png"
+    },
+    {
+      "role": "assistant",
+      "content": "I can't see the photo you mentioned. Could you describe what you'd like to discuss about it? If there's an issue with the image display, ensuring the file path is correct or uploading it again might help."
+    },
+    {
+      "role": "user",
+      "content": "Let's talk about this photo: /static/demo_user/Choco/processed/Memory_Retreival_Flow.png"
+    },
+    {
+      "role": "assistant",
+      "content": "It seems there might be an issue with accessing the image through that link. If you can reupload it or describe the content, I'd be glad to help with insights or observations based on the photo!"
+    }
+  ],
+  "images": [
+    {
+      "name": "photo8-14.jpg",
+      "file_path": "data\\profiles\\Choco\\uploads\\photo8-14.jpg",
+      "url": "http://127.0.0.1:8000/static/Choco/uploads/photo8-14.jpg"
+    }
+  ],
+  "selected_images": [
+    {
+      "name": "photo8-14.jpg",
+      "file_path": "data\\profiles\\Choco\\uploads\\photo8-14.jpg",
+      "url": "http://127.0.0.1:8000/static/Choco/uploads/photo8-14.jpg"
+    }
+  ]
+}
