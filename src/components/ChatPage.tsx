@@ -1,4 +1,3 @@
-// src/pages/ChatPage.tsx
 import { useState, useEffect, useContext } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { ProfileContext } from "../context/ProfileContext";
@@ -6,14 +5,33 @@ import { listUploadedPhotos, uploadPhoto, selectPhoto } from "../api/photos";
 import type { Photo, PhotosListResponse } from "../api/photos";
 
 export default function ChatPage() {
-  const { selectedProfile } = useContext(ProfileContext);
+  const { selectedProfile, uploadedPhotoURL } = useContext(ProfileContext);
 
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [_selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [uploading, setUploading] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const API_BASE = import.meta.env.VITE_API_BASE;
+
+  // Debugging uploadedPhotoURL
+  useEffect(() => {
+    console.log("ChatPage sees uploadedPhotoURL:", uploadedPhotoURL);
+  }, [uploadedPhotoURL]);
+
+  // Normalize URLs
+  const normalizeImageUrl = (url?: string | null): string => {
+    if (!url) return "";
+    try {
+      new URL(url);
+      return url;
+    } catch {
+      const base = API_BASE.replace(/\/api$/, "");
+      return `${base}/${url.replace(/^\/+/, "")}`;
+    }
+  };
 
   // Load photos when profile changes
   useEffect(() => {
@@ -24,32 +42,43 @@ export default function ChatPage() {
   const loadPhotos = async () => {
     try {
       const res: PhotosListResponse = await listUploadedPhotos(selectedProfile!);
-      setPhotos(res.uploaded_images || []);
-      setSelectedPhoto(res.selected_image || null);
+
+      const normalized = (res.uploaded_images || []).map((p) => ({
+        ...p,
+        public_url: normalizeImageUrl(p.public_url),
+      }));
+
+      setPhotos(normalized);
+
+      if (res.selected_image) {
+        setSelectedPhoto({
+          ...res.selected_image,
+          public_url: normalizeImageUrl(res.selected_image.public_url),
+        });
+      } else {
+        setSelectedPhoto(null);
+      }
     } catch (e) {
       console.error(e);
       setError("Failed to load photos");
     }
   };
 
+  // Input handlers
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value);
 
-  /** ✅ Send a chat message to /api/gpt4v/chat */
   const handleSend = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedProfile || !input.trim()) return;
 
     const userMessage = input.trim();
-    setMessages(prev => [...prev, { role: "user", content: userMessage }]);
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setInput("");
 
     try {
-      const body = new URLSearchParams({
-        profile: selectedProfile,
-        user_message: userMessage,
-      });
+      const body = new URLSearchParams({ profile: selectedProfile, user_message: userMessage });
 
-      const res = await fetch("http://127.0.0.1:8000/api/gpt4v/chat", {
+      const res = await fetch(`${API_BASE}/api/gpt4v/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body,
@@ -58,16 +87,17 @@ export default function ChatPage() {
       if (!res.ok) throw new Error(`Chat failed: ${res.status}`);
       const data = await res.json();
 
-      setMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
     } catch (err) {
       console.error(err);
       setError("Failed to send message");
     }
   };
 
-  /** ✅ Upload photo via backend */
+  // Upload photo
   const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     if (!selectedProfile || !e.target.files?.length) return;
+
     const file = e.target.files[0];
 
     try {
@@ -83,33 +113,40 @@ export default function ChatPage() {
     }
   };
 
-  /** ✅ Select photo (and initiate chat automatically) */
+  // Select photo and trigger intro chat
   const handleSelect = async (photo: Photo) => {
     if (!selectedProfile) return;
 
     try {
       const res = await selectPhoto(selectedProfile, photo.filename);
-      setSelectedPhoto(res);
 
-      // Start a chat about this photo
-      const intro = `Let's talk about this photo`;
-      setMessages(prev => [...prev, { role: "user", content: intro }]);
+      const normalized = {
+        ...res,
+        public_url: normalizeImageUrl(res.public_url),
+      };
+
+      // IMPORTANT FIX: update correct state so UI displays the image
+      setSelectedPhoto(normalized);
+
+      const intro = "Let's talk about this photo";
+
+      setMessages((prev) => [...prev, { role: "user", content: intro }]);
 
       const body = new URLSearchParams({
         profile: selectedProfile,
         user_message: intro,
       });
 
-      const chatRes = await fetch("http://127.0.0.1:8000/api/gpt4v/chat", {
+      const chatRes = await fetch(`${API_BASE}/api/gpt4v/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body,
       });
 
       if (!chatRes.ok) throw new Error("Failed to start photo chat");
-      const chatData = await chatRes.json();
 
-      setMessages(prev => [...prev, { role: "assistant", content: chatData.reply }]);
+      const chatData = await chatRes.json();
+      setMessages((prev) => [...prev, { role: "assistant", content: chatData.reply }]);
     } catch (e) {
       console.error(e);
       setError("Failed to select photo");
@@ -118,7 +155,6 @@ export default function ChatPage() {
 
   if (!selectedProfile) return <p>Please select a profile first.</p>;
 
-  // ✅ --- UI Render ---
   return (
     <div style={{ padding: 20, maxWidth: 800, margin: "auto", fontFamily: "sans-serif" }}>
       <h1>💬 Chat with {selectedProfile}</h1>
@@ -128,7 +164,7 @@ export default function ChatPage() {
       <input type="file" onChange={handleUpload} disabled={uploading} style={{ marginBottom: 10 }} />
 
       <ul>
-        {photos.map(p => (
+        {photos.map((p) => (
           <li key={p.filename} style={{ margin: "8px 0", display: "flex", justifyContent: "space-between" }}>
             <span>{p.filename}</span>
             <button onClick={() => handleSelect(p)}>Select</button>
@@ -136,8 +172,7 @@ export default function ChatPage() {
         ))}
       </ul>
 
-      {/* ✅ Display selected photo clearly above chat */}
-      {selectedPhoto && (
+      {_selectedPhoto && (
         <div
           style={{
             marginTop: 16,
@@ -148,11 +183,9 @@ export default function ChatPage() {
             textAlign: "center",
           }}
         >
-          <p style={{ fontWeight: "bold", marginBottom: 8 }}>
-            🖼️ Talking about: {selectedPhoto.filename}
-          </p>
+          <p style={{ fontWeight: "bold", marginBottom: 8 }}>🖼️ Talking about selected photo</p>
           <img
-            src={selectedPhoto.public_url}
+            src={_selectedPhoto.public_url}
             alt="Selected"
             style={{
               maxWidth: "100%",
@@ -165,7 +198,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* ✅ Chat messages */}
       <div
         style={{
           marginTop: 20,

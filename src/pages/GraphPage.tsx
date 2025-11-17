@@ -1,6 +1,8 @@
-import React, { useContext } from "react";
 import ChatPanel from "../components/ChatPage";
 import { ProfileContext } from "../context/ProfileContext";
+import { useContext } from "react";
+
+
 
 const ChatPage: React.FC = () => {
   const { selectedProfile } = useContext(ProfileContext);

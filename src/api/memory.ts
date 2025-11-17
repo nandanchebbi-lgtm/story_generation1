@@ -1,6 +1,5 @@
-import axios from "axios";
-
-const API_BASE = "http://127.0.0.1:8000"; // backend host/port
+// src/api/memory.ts
+import axiosInstance from "./axiosConfig";
 
 // --- Types ---
 export interface Message {
@@ -32,30 +31,29 @@ export interface GraphEdge {
 
 // --- Memory API ---
 
-/**
- * Add messages (chunk) to the user's memory KG
- */
-export async function addChunk(request: AddChunkRequest): Promise<{ status: string }> {
-  const res = await axios.post(`${API_BASE}/memory/add_chunk`, request, {
+/** Add messages (chunk) to the user's memory KG */
+export async function addChunk(
+  request: AddChunkRequest
+): Promise<{ status: string }> {
+  const res = await axiosInstance.post(`/memory/add_chunk`, request, {
     headers: { "Content-Type": "application/json" },
   });
   return res.data;
 }
 
-/**
- * Retrieve relevant memory context for a query
- */
+/** Retrieve relevant memory context for a query */
 export async function retrieveContext(
   request: RetrieveContextRequest
 ): Promise<{ context: string }> {
-  const res = await axios.post(`${API_BASE}/memory/retrieve_context`, request, {
+  const res = await axiosInstance.post(`/memory/retrieve_context`, request, {
     headers: { "Content-Type": "application/json" },
   });
   return res.data;
 }
 
+/** Fetch entire graph for a profile */
 export const fetchGraph = async (profile: string) => {
-  const response = await fetch(`/api/graph/${profile}`);
-  if (!response.ok) throw new Error("Failed to fetch graph");
-  return response.json();
+  const res = await axiosInstance.get(`/graph/${profile}`);
+  if (res.status !== 200) throw new Error("Failed to fetch graph");
+  return res.data;
 };

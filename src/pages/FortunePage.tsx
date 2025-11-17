@@ -1,10 +1,11 @@
 // src/pages/FortuneCookiePage.tsx
-import React, { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProfileContext } from "../context/ProfileContext";
 
 export default function FortuneCookiePage() {
-  const { selectedProfile, setUploadedPhoto } = useContext(ProfileContext);
+  const { selectedProfile, setUploadedPhotoBase64, setUploadedPhotoURL } =
+    useContext(ProfileContext);
   const navigate = useNavigate();
 
   const [openedIndex, setOpenedIndex] = useState<number | null>(null);
@@ -14,61 +15,20 @@ export default function FortuneCookiePage() {
   const [yearReview, setYearReview] = useState<string>(
     "Loading your year in review..."
   );
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  const API_BASE = "http://127.0.0.1:8000/api/gpt4v";
+  const API_BASE = `${import.meta.env.VITE_API_BASE}/api/gpt4v`;
 
   const cookies = [
-    {
-      label: "Fortune Cookie 1",
-      message:
-        "Some calm moments hide entire stories. Find a picture that feels like silence — maybe a window view, a cup of tea, or a quiet sky. Let’s see what peace looks like for you.",
-    },
-    {
-      label: "Fortune Cookie 2",
-      message:
-        "Every color holds a memory. Show me an image whose colors remind you of warmth, nostalgia, or joy — even if you can’t explain why.",
-    },
-    {
-      label: "Fortune Cookie 3",
-      message:
-        "Sometimes our feelings look like mess — and that’s okay. Upload an image that feels a little wild, imperfect, or full of energy. I’ll help you find the meaning in its movement.",
-    },
-    {
-      label: "Fortune Cookie 4",
-      message:
-        "Beauty often hides in the smallest gestures. Maybe it’s a hand on a shoulder, an old note, or something that reminds you of care. Share a picture that holds quiet affection.",
-    },
-    {
-      label: "Fortune Cookie 5",
-      message:
-        "Every dream leaves a visual echo. Pick an image that feels like something between waking and sleeping — soft light, reflections, shadows, or surreal forms.",
-    },
-    {
-      label: "Fortune Cookie 6",
-      message:
-        "Curiosity is the start of connection. Upload something that sparks your curiosity — a texture, a place, or an object that makes you pause and look closer.",
-    },
-    {
-      label: "Fortune Cookie 7",
-      message:
-        "Change is a kind of art. Show me an image that captures transformation — a sunrise, falling leaves, or something that reminds you that nothing stays still forever.",
-    },
-    {
-      label: "Fortune Cookie 8",
-      message:
-        "Every shadow has its story. Find a picture where light and dark meet — a play of contrast that feels like emotion made visible.",
-    },
-    {
-      label: "Fortune Cookie 9",
-      message:
-        "Wonder often hides in the ordinary. Capture something familiar — a street corner, a favorite object, a passing glance — and let’s look at it as if for the first time.",
-    },
-    {
-      label: "Fortune Cookie 10",
-      message:
-        "Your perspective is a poem. Share an image that feels like your way of seeing — something only you would notice, something quietly yours.",
-    },
+    { label: "Fortune Cookie 1", message: "Some calm moments hide entire stories. Find a picture that feels like silence — maybe a window view, a cup of tea, or a quiet sky. Let’s see what peace looks like for you." },
+    { label: "Fortune Cookie 2", message: "Every color holds a memory. Show me an image whose colors remind you of warmth, nostalgia, or joy — even if you can’t explain why." },
+    { label: "Fortune Cookie 3", message: "Sometimes our feelings look like mess — and that’s okay. Upload an image that feels a little wild, imperfect, or full of energy. I’ll help you find the meaning in its movement." },
+    { label: "Fortune Cookie 4", message: "Beauty often hides in the smallest gestures. Maybe it’s a hand on a shoulder, an old note, or something that reminds you of care. Share a picture that holds quiet affection." },
+    { label: "Fortune Cookie 5", message: "Every dream leaves a visual echo. Pick an image that feels like something between waking and sleeping — soft light, reflections, shadows, or surreal forms." },
+    { label: "Fortune Cookie 6", message: "Curiosity is the start of connection. Upload something that sparks your curiosity — a texture, a place, or an object that makes you pause and look closer." },
+    { label: "Fortune Cookie 7", message: "Change is a kind of art. Show me an image that captures transformation — a sunrise, falling leaves, or something that reminds you that nothing stays still forever." },
+    { label: "Fortune Cookie 8", message: "Every shadow has its story. Find a picture where light and dark meet — a play of contrast that feels like emotion made visible." },
+    { label: "Fortune Cookie 9", message: "Wonder often hides in the ordinary. Capture something familiar — a street corner, a favorite object, a passing glance — and let’s look at it as if for the first time." },
+    { label: "Fortune Cookie 10", message: "Your perspective is a poem. Share an image that feels like your way of seeing — something only you would notice, something quietly yours." },
   ];
 
   const handleCookieClick = (index: number) => {
@@ -77,7 +37,6 @@ export default function FortuneCookiePage() {
     setReply("");
   };
 
-  // 🧠 Fetch Year-In-Review dynamically whenever chats or cookies change
   useEffect(() => {
     if (!selectedProfile) return;
 
@@ -92,16 +51,15 @@ export default function FortuneCookiePage() {
         });
 
         const data = await res.json();
-        if (data.reply) setYearReview(data.reply);
-        else setYearReview("No highlights yet — start your journey!");
+        setYearReview(data.reply || "No highlights yet — start your journey!");
       } catch (err) {
-        console.error("Failed to fetch Year-In-Review:", err);
+        console.error("Failed to load Year-In-Review:", err);
         setYearReview("⚠️ Could not load year-in-review.");
       }
     };
 
     fetchYearReview();
-  }, [selectedProfile, refreshKey]);
+  }, [selectedProfile]);
 
   const handleUpload = async () => {
     if (!file || !selectedProfile) {
@@ -111,7 +69,6 @@ export default function FortuneCookiePage() {
 
     setLoading(true);
     try {
-      // ✅ Convert image file to base64 before uploading
       const toBase64 = (file: File) =>
         new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -121,11 +78,9 @@ export default function FortuneCookiePage() {
         });
 
       const base64 = await toBase64(file);
-      // Save to both localStorage and ProfileContext
-      localStorage.setItem("uploadedPhoto", base64);
-      setUploadedPhoto(base64);
+      localStorage.setItem("uploadedPhotoBase64", base64);
+      setUploadedPhotoBase64(base64);
 
-      // ✅ Upload image to backend
       const formData = new FormData();
       formData.append("file", file);
 
@@ -134,54 +89,41 @@ export default function FortuneCookiePage() {
         { method: "POST", body: formData }
       );
 
-      if (!uploadRes.ok) {
-        const text = await uploadRes.text().catch(() => "");
-        throw new Error(`Upload failed (${uploadRes.status}): ${text}`);
-      }
-
+      if (!uploadRes.ok) throw new Error("Upload failed");
       const uploadData = await uploadRes.json();
       const filename = uploadData.filename;
 
-      // ✅ If backend returns a URL, use that instead of base64
       if (uploadData.public_url) {
-        localStorage.setItem("uploadedPhoto", uploadData.public_url);
-        setUploadedPhoto(uploadData.public_url);
+        localStorage.setItem("uploadedPhotoURL", uploadData.public_url);
+        setUploadedPhotoURL(uploadData.public_url);
       }
 
-      // Call select API to initialize chat context
       const selectRes = await fetch(
-        `${API_BASE}/select?profile=${encodeURIComponent(
-          selectedProfile
-        )}&image_name=${encodeURIComponent(filename)}`,
+        `${API_BASE}/select?profile=${encodeURIComponent(selectedProfile)}&image_name=${encodeURIComponent(filename)}`,
         { method: "POST" }
       );
 
-      if (!selectRes.ok) throw new Error("Select API failed");
       const data = await selectRes.json();
 
       if (data.public_url) {
-        localStorage.setItem("uploadedPhoto", data.public_url);
-        setUploadedPhoto(data.public_url);
+        localStorage.setItem("uploadedPhotoURL", data.public_url);
+        setUploadedPhotoURL(data.public_url);
       }
 
-      // Store initial chat (system reply)
       if (data.auto_reply) {
-        const initialUserMessage = "Let's talk about this photo.";
         localStorage.setItem(
           "initialChat",
           JSON.stringify([
-            { role: "user", content: initialUserMessage },
+            { role: "user", content: "Let's talk about this photo." },
             { role: "assistant", content: data.auto_reply },
           ])
         );
       }
 
-      // Refresh Year-In-Review and navigate
-      setRefreshKey((prev) => prev + 1);
       navigate("/chat");
     } catch (err) {
-      console.error("Upload error:", err);
-      setReply("⚠️ Upload failed. See console for details.");
+      console.error(err);
+      setReply("⚠️ Upload failed. See console.");
     } finally {
       setLoading(false);
     }
@@ -201,7 +143,7 @@ export default function FortuneCookiePage() {
         color: "#3b2a28",
       }}
     >
-      {/* 🥠 Left: Fortune Cookies & Upload */}
+      {/* LEFT PANEL */}
       <div
         style={{
           flex: "1 1 70%",
@@ -231,13 +173,12 @@ export default function FortuneCookiePage() {
             marginBottom: 40,
           }}
         >
-          {cookies.map((cookie, index) => (
+          {cookies.map((_, index) => (
             <div
               key={index}
               onClick={() => handleCookieClick(index)}
               style={{
-                backgroundColor:
-                  openedIndex === index ? "#e25b45" : "#fff0ec",
+                backgroundColor: openedIndex === index ? "#e25b45" : "#fff0ec",
                 borderRadius: 14,
                 width: 150,
                 height: 150,
@@ -318,6 +259,7 @@ export default function FortuneCookiePage() {
                   color: "#5a3b32",
                 }}
               />
+
               <button
                 onClick={handleUpload}
                 disabled={loading || !file}
@@ -364,7 +306,7 @@ export default function FortuneCookiePage() {
         )}
       </div>
 
-      {/* 🌟 Right: Year-In-Review Panel */}
+      {/* RIGHT PANEL */}
       <div
         style={{
           flex: "0 0 30%",
@@ -385,6 +327,7 @@ export default function FortuneCookiePage() {
         >
           🌟 Year In Review
         </h2>
+
         <p
           style={{
             whiteSpace: "pre-wrap",

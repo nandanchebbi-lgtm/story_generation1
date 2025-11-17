@@ -1,38 +1,39 @@
-// src/api/profiles.ts
-const API_BASE = "http://127.0.0.1:8000/api/profiles"; // ✅ Correct base for all profile routes
+import type { Profile } from "./types";
+import { api } from "./axiosConfig";
 
-async function handleResponse(res: Response, errorMessage: string) {
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${errorMessage} (${res.status}): ${text}`);
+// Generic response handler
+async function handleResponse<T>(promise: Promise<any>, errorMessage: string): Promise<T> {
+  try {
+    const res = await promise;
+    return res.data;
+  } catch (err: any) {
+    const msg = err.response?.data?.detail || err.message || "Unknown error";
+    throw new Error(`${errorMessage}: ${msg}`);
   }
-  return await res.json().catch(() => ({}));
 }
 
-export async function fetchProfiles() {
-  const res = await fetch(`${API_BASE}/list`);
-  return handleResponse(res, "Failed to load profiles");
+// Fetch all profiles
+export async function fetchProfiles(): Promise<Profile[]> {
+  return handleResponse<Profile[]>(api.get("/profiles/list"), "Failed to load profiles");
 }
 
-export async function createProfile(name: string) {
-  const res = await fetch(`${API_BASE}/create?name=${encodeURIComponent(name)}`, {
-    method: "POST",
-  });
-  await handleResponse(res, "Failed to create profile");
+// Create a new profile
+export async function createProfile(name: string): Promise<Profile> {
+  return handleResponse<Profile>(api.post("/profiles/create", { name }), "Failed to create profile");
+}
+
+// Delete a profile
+export async function deleteProfile(name: string): Promise<{ message: string }> {
+  return handleResponse<{ message: string }>(
+    api.delete("/profiles/delete", { data: { name } }),
+    "Failed to delete profile"
+  );
+}
+
+// Select a profile
+export async function selectProfile(name: string): Promise<string> {
+  await handleResponse<null>(api.post("/profiles/select", { name }), "Failed to select profile");
   return name;
 }
 
-export async function deleteProfile(name: string) {
-  const res = await fetch(`${API_BASE}/delete?name=${encodeURIComponent(name)}`, {
-    method: "DELETE",
-  });
-  await handleResponse(res, "Failed to delete profile");
-}
-
-export async function selectProfile(name: string) {
-  const res = await fetch(`${API_BASE}/select?name=${encodeURIComponent(name)}`, {
-    method: "POST",
-  });
-  await handleResponse(res, "Failed to select profile");
-  return name;
-}
+export default api;

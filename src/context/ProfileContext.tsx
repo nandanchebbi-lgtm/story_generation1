@@ -1,59 +1,54 @@
 // src/context/ProfileContext.tsx
-import { createContext, useState, useEffect } from "react";
+import { createContext, useState } from "react";
 import type { ReactNode } from "react";
 
-interface ProfileContextType {
+/** Context type */
+export interface ProfileContextType {
   selectedProfile: string | null;
   setSelectedProfile: (profile: string | null) => void;
-  uploadedPhoto: string | null;
-  setUploadedPhoto: (photo: string | null) => void;
+
+  /** Base64 preview for UI only (optional) */
+  uploadedPhotoBase64: string | null;
+  setUploadedPhotoBase64: (base64: string | null) => void;
+
+  /** The REAL image URL from backend (public_url) */
+  uploadedPhotoURL: string | null;
+  setUploadedPhotoURL: (url: string | null) => void;
 }
 
+/** Create context */
 export const ProfileContext = createContext<ProfileContextType>({
   selectedProfile: null,
   setSelectedProfile: () => {},
-  uploadedPhoto: null,
-  setUploadedPhoto: () => {},
+
+  uploadedPhotoBase64: null,
+  setUploadedPhotoBase64: () => {},
+
+  uploadedPhotoURL: null,
+  setUploadedPhotoURL: () => {},
 });
 
-interface ProfileProviderProps {
-  children: ReactNode;
-}
+/** Provider */
+export const ProfileProvider = ({ children }: { children: ReactNode }) => {
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
 
-export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) => {
-  const [selectedProfile, setSelectedProfileState] = useState<string | null>(null);
-  const [uploadedPhoto, setUploadedPhotoState] = useState<string | null>(null);
+  /** Base64 for UI preview (optional) */
+  const [uploadedPhotoBase64, setUploadedPhotoBase64] = useState<string | null>(null);
 
-  // ✅ Load both profile and photo from localStorage on app start
-  useEffect(() => {
-    const savedProfile = localStorage.getItem("activeProfile");
-    const savedPhoto = localStorage.getItem("uploadedPhoto");
-
-    if (savedProfile) setSelectedProfileState(savedProfile);
-    if (savedPhoto) setUploadedPhotoState(savedPhoto);
-  }, []);
-
-  // ✅ When user selects a profile
-  const setSelectedProfile = (profile: string | null) => {
-    setSelectedProfileState(profile);
-    if (profile) localStorage.setItem("activeProfile", profile);
-    else localStorage.removeItem("activeProfile");
-  };
-
-  // ✅ When user uploads a photo
-  const setUploadedPhoto = (photo: string | null) => {
-    setUploadedPhotoState(photo);
-    if (photo) localStorage.setItem("uploadedPhoto", photo);
-    else localStorage.removeItem("uploadedPhoto");
-  };
+  /** Full backend public URL (required for ChatPage image display) */
+  const [uploadedPhotoURL, setUploadedPhotoURL] = useState<string | null>(null);
 
   return (
     <ProfileContext.Provider
       value={{
         selectedProfile,
         setSelectedProfile,
-        uploadedPhoto,
-        setUploadedPhoto,
+
+        uploadedPhotoBase64,
+        setUploadedPhotoBase64,
+
+        uploadedPhotoURL,
+        setUploadedPhotoURL,
       }}
     >
       {children}

@@ -1,85 +1,90 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+// src/pages/ChatPage.tsx
+import { useState, useEffect, useContext, useRef } from "react";
 import axios from "axios";
 import { ProfileContext } from "../context/ProfileContext";
 
-export default function ChatPage() {
-  const { selectedProfile, uploadedPhoto } = useContext(ProfileContext);
+/** Normalize backend image URL (LAN + Docker safe) */
+function normalizeImageUrl(url: string | null): string | null {
+  if (!url) return null;
 
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+
+  const apiBase = import.meta.env.VITE_API_BASE.replace(/\/api$/, "");
+  return `${apiBase}/${url.replace(/^\/+/, "")}`;
+}
+
+export default function ChatPage() {
+  const { selectedProfile, uploadedPhotoURL } = useContext(ProfileContext);
+
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [messages, setMessages] = useState<
+    { role: string; content: string }[]
+  >([]);
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  const API_BASE = "http://127.0.0.1:8000/api/gpt4v";
+  const API_BASE = `${import.meta.env.VITE_API_BASE}/api/gpt4v`;
 
-  // ✅ Load any initial messages (e.g. from FortunePage)
+  /** Load uploaded image URL */
+  useEffect(() => {
+    if (uploadedPhotoURL) {
+      setImageUrl(normalizeImageUrl(uploadedPhotoURL));
+    }
+  }, [uploadedPhotoURL]);
+
+  /** Load initial messages (from Fortune Page) */
   useEffect(() => {
     const stored = localStorage.getItem("initialChat");
     if (stored) {
       try {
         setMessages(JSON.parse(stored));
       } catch (err) {
-        console.error("Failed to parse initial chat:", err);
+        console.error("Initial chat parse error:", err);
       } finally {
         localStorage.removeItem("initialChat");
       }
     }
   }, []);
 
-  // ✅ Auto-scroll to bottom when new messages appear
+  /** Auto-scroll */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ✅ Send chat message
+  /** Send message */
   const handleSend = async () => {
-    if (!input.trim()) return;
-    if (!selectedProfile) {
-      alert("Please select a profile first.");
-      return;
-    }
+    if (!input.trim() || !selectedProfile) return;
 
-    const newMessage = { role: "user", content: input };
-    setMessages((prev) => [...prev, newMessage]);
+    const userMsg = { role: "user", content: input };
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("profile", selectedProfile);
-      formData.append("user_message", input);
+      const form = new FormData();
+      form.append("profile", selectedProfile);
+      form.append("user_message", input);
 
-      const res = await axios.post(`${API_BASE}/chat`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await axios.post(`${API_BASE}/chat`, form);
+      const reply = res.data.reply || "⚠️ No response from server.";
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: res.data.reply || "⚠️ No reply received from GPT.",
-        },
-      ]);
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (err) {
       console.error("Chat error:", err);
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content:
-            "⚠️ There was an error sending your message. Please check the console or backend logs.",
-        },
+        { role: "assistant", content: "⚠️ Failed to send message." },
       ]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !loading) handleSend();
-  };
-
-  // ✅ Handle Year in Review
+  /** Year-in-Review button */
   const handleYearInReview = async () => {
     if (!selectedProfile) return;
 
@@ -89,33 +94,30 @@ export default function ChatPage() {
     ]);
 
     try {
-      const formData = new FormData();
-      formData.append("profile", selectedProfile);
+      const form = new FormData();
+      form.append("profile", selectedProfile);
 
-      const res = await axios.post(`${API_BASE}/year_in_review`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await axios.post(`${API_BASE}/year_in_review`, form);
+      const reply = res.data.reply || "⚠️ No review available.";
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: res.data.reply },
-      ]);
-    } catch (err) {
-      console.error("Year in Review error:", err);
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    } catch {
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "⚠️ Failed to generate year in review. Please try again later.",
+          content: "⚠️ Unable to load review.",
         },
       ]);
     }
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !loading) handleSend();
+  };
+
   if (!selectedProfile)
-    return (
-      <p style={{ padding: 20 }}>⚠️ Please select a profile first from the main page.</p>
-    );
+    return <p style={{ padding: 20 }}>⚠️ Select a profile first.</p>;
 
   return (
     <div
@@ -127,29 +129,29 @@ export default function ChatPage() {
         color: "#3b2a28",
       }}
     >
-      {/* LEFT SIDE — Display the uploaded image */}
+      {/* LEFT: image panel */}
       <div
         style={{
           flex: 1,
           borderRight: "1px solid #ffd4c9",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           backgroundColor: "#fff6f2",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
           flexDirection: "column",
           gap: "12px",
         }}
       >
-        {uploadedPhoto ? (
+        {imageUrl ? (
           <img
-            src={uploadedPhoto}
-            alt="Selected visual"
+            src={imageUrl}
+            alt="Selected"
             style={{
               maxWidth: "85%",
               maxHeight: "85%",
               borderRadius: "16px",
-              boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
               objectFit: "contain",
+              boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
             }}
           />
         ) : (
@@ -157,14 +159,8 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* RIGHT SIDE — Chat interface */}
-      <div
-        style={{
-          flex: 1.5,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
+      {/* RIGHT: chat panel */}
+      <div style={{ flex: 1.5, display: "flex", flexDirection: "column" }}>
         {/* Header */}
         <div
           style={{
@@ -172,11 +168,11 @@ export default function ChatPage() {
             color: "white",
             padding: "16px 24px",
             fontSize: "1.2rem",
-            fontWeight: "500",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+            fontWeight: 500,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
           }}
         >
           <span>💬 Chat with Your Visual Companion</span>
@@ -186,11 +182,11 @@ export default function ChatPage() {
               backgroundColor: "white",
               color: "#e25b45",
               border: "none",
-              borderRadius: "8px",
-              padding: "6px 12px",
-              fontWeight: "500",
+              borderRadius: 8,
+              padding: "8px 14px",
+              fontWeight: 500,
               cursor: "pointer",
-              transition: "all 0.2s ease",
+              transition: "0.25s",
             }}
           >
             Year in Review
@@ -202,19 +198,20 @@ export default function ChatPage() {
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "20px",
+            padding: 20,
             display: "flex",
             flexDirection: "column",
-            gap: "12px",
+            gap: 12,
             backgroundColor: "#fff7f3",
           }}
         >
-          {messages.map((msg, idx) => (
+          {messages.map((msg, i) => (
             <div
-              key={idx}
+              key={i}
               style={{
                 alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-                backgroundColor: msg.role === "user" ? "#e25b45" : "#fff0ec",
+                backgroundColor:
+                  msg.role === "user" ? "#e25b45" : "#fff0ec",
                 color: msg.role === "user" ? "white" : "#3b2a28",
                 padding: "12px 16px",
                 borderRadius: "16px",
@@ -222,7 +219,7 @@ export default function ChatPage() {
                 lineHeight: 1.6,
                 boxShadow:
                   msg.role === "user"
-                    ? "0 4px 12px rgba(255, 253, 252, 1)"
+                    ? "0 4px 12px rgba(255,253,252,1)"
                     : "0 3px 8px rgba(0,0,0,0.1)",
                 wordBreak: "break-word",
               }}
@@ -230,36 +227,35 @@ export default function ChatPage() {
               {msg.content}
             </div>
           ))}
+
           <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
+        {/* Input area */}
         <div
           style={{
             display: "flex",
-            padding: "16px",
-            borderTop: "1px solid #ffd4c9",
+            padding: 16,
             backgroundColor: "#fff6f2",
-            alignItems: "center",
-            gap: "10px",
+            borderTop: "1px solid #ffd4c9",
+            gap: 10,
           }}
         >
           <input
             type="text"
-            placeholder="Type your message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
+            placeholder="Type your message..."
             style={{
               flex: 1,
               padding: "10px 14px",
-              borderRadius: "8px",
+              borderRadius: 8,
               border: "1px solid #f5b8a5",
               backgroundColor: "white",
-              color: "black",
               fontSize: "1rem",
               outline: "none",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+              color: "#3b2a28",
             }}
           />
 
@@ -270,12 +266,12 @@ export default function ChatPage() {
               backgroundColor: loading ? "#f3b5aa" : "#e25b45",
               color: "white",
               border: "none",
-              borderRadius: "8px",
+              borderRadius: 8,
               padding: "10px 18px",
               fontWeight: 500,
               cursor: loading ? "not-allowed" : "pointer",
               boxShadow: "0 4px 10px rgba(226,91,69,0.3)",
-              transition: "all 0.2s ease",
+              transition: "0.2s",
             }}
           >
             {loading ? "..." : "Send"}

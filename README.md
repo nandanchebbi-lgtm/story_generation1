@@ -71,3 +71,4 @@ export default defineConfig([
   },
 ])
 ```
+PS C:\Users\nanda\mindlink> poetry run uvicorn pkg.app.main:app --reload --host 0.0.0.0 --port 8000    

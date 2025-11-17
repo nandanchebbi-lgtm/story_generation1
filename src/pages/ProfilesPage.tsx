@@ -1,5 +1,5 @@
 // src/pages/ProfilesPage.tsx
-import React, { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,12 +9,14 @@ import {
   selectProfile,
 } from "../api/profiles";
 import { ProfileContext } from "../context/ProfileContext";
-
-// ✅ Import your SVG as an image
 import profileIcon from "../assets/profile_icon.svg";
 
-// ✅ Define default avatars
+// Default avatars
 const DEFAULT_AVATARS = [profileIcon, profileIcon, profileIcon, profileIcon];
+
+interface Profile {
+  name: string;
+}
 
 export default function ProfilesPage() {
   const { selectedProfile, setSelectedProfile } = useContext(ProfileContext);
@@ -26,16 +28,12 @@ export default function ProfilesPage() {
   const [openedProfile, setOpenedProfile] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  interface Profile {
-    name: string;
-  }
-
   const loadProfiles = async () => {
     try {
       setError(null);
       setLoading(true);
       const data: Profile[] = await fetchProfiles();
-      setProfiles(data.map((p: Profile) => p.name));
+      setProfiles(data.map((p) => p.name));
     } catch (err) {
       console.error("[ProfilesPage] Failed to fetch profiles:", err);
       setError("Failed to load profiles");
@@ -54,9 +52,9 @@ export default function ProfilesPage() {
     if (!newProfile.trim()) return;
     try {
       setLoading(true);
-      const profileName = await createProfile(newProfile.trim());
-      setSelectedProfile(profileName);
-      localStorage.setItem("activeProfile", profileName);
+      const profile = await createProfile(newProfile.trim());
+      setSelectedProfile(profile.name);
+      localStorage.setItem("activeProfile", profile.name);
       setNewProfile("");
       await loadProfiles();
       setShowCreate(false);
@@ -89,9 +87,9 @@ export default function ProfilesPage() {
   const handleSelect = async (name: string) => {
     try {
       setLoading(true);
-      const profileName = await selectProfile(name);
-      setSelectedProfile(profileName);
-      localStorage.setItem("activeProfile", profileName);
+      await selectProfile(name);
+      setSelectedProfile(name);
+      localStorage.setItem("activeProfile", name);
       navigate("/fortune");
     } catch (err) {
       console.error(err);
@@ -174,7 +172,6 @@ export default function ProfilesPage() {
                   : "0 2px 10px rgba(0,0,0,0.1)",
             }}
           >
-            {/* ✅ Updated Avatar */}
             <img
               src={DEFAULT_AVATARS[index % DEFAULT_AVATARS.length]}
               alt={name}
@@ -235,7 +232,7 @@ export default function ProfilesPage() {
         </div>
       </div>
 
-      {/* Profile details when opened */}
+      {/* Profile Details */}
       {openedProfile && (
         <div
           style={{
@@ -249,8 +246,7 @@ export default function ProfilesPage() {
           }}
         >
           <h2 style={{ marginBottom: 10, color: "#d64d3a" }}>
-            Welcome back,{" "}
-            <span style={{ color: "#e25b45" }}>{openedProfile}</span> 👋
+            Welcome back, <span style={{ color: "#e25b45" }}>{openedProfile}</span> 👋
           </h2>
           <p style={{ color: "#7b4b3a", marginBottom: 20 }}>
             Ready to unlock today’s fortune? Let’s dive in.
@@ -337,20 +333,24 @@ export default function ProfilesPage() {
                 {loading ? "Creating..." : "Create"}
               </button>
               <button
-                  onClick={() => setShowCreate(false)}
-                  style={{
-                      padding: "15px 15px",
-                      backgroundColor: "transparent",
-                      border: "1px solid #e25b45",
-                      borderRadius: 4,
-                      color: "#e25b45",
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
-               }}
-                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#ffe8e3")}
-                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                onClick={() => setShowCreate(false)}
+                style={{
+                  padding: "15px 15px",
+                  backgroundColor: "transparent",
+                  border: "1px solid #e25b45",
+                  borderRadius: 4,
+                  color: "#e25b45",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseOver={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#ffe8e3")
+                }
+                onMouseOut={(e) =>
+                  (e.currentTarget.style.backgroundColor = "transparent")
+                }
               >
-              Cancel
+                Cancel
               </button>
             </div>
           </div>

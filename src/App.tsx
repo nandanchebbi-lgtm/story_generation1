@@ -1,7 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import ChatPage from "./pages/ChatPage";
-import PhotosPage from "./pages/PhotosPage";
 import ProfilesPage from "./pages/ProfilesPage";
 import GraphPage from "./pages/GraphPage";
 import LandingPage from "./pages/LandingPage";
@@ -24,7 +23,6 @@ export default function App() {
                 <Routes>
                   <Route path="/profiles" element={<ProfilesPage />} />
                   <Route path="/fortune" element={<FortuneCookiePage />} />
-                  <Route path="/photos" element={<PhotosPage />} />
                   <Route path="/chat" element={<ChatPage />} />
                   <Route path="/graph" element={<GraphPage />} />
                 </Routes>

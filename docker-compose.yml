@@ -1,0 +1,41 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: mindlink-backend
+    env_file:
+      - .env
+    environment:
+      - DATA_DIR=/app/data
+    ports:
+      - "8000:8000"
+    volumes:
+      - mindlink_data:/app/data
+    networks:
+      - mindlink-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_BASE: "http://192.168.0.196:8000"  # ✅ Correct mapping
+    container_name: mindlink-frontend
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE=http://192.168.0.196:8000
+    ports:
+      - "3000:80"
+    networks:
+      - mindlink-net
+    restart: unless-stopped
+
+volumes:
+  mindlink_data: {}
+
+networks:
+  mindlink-net:
+    driver: bridge

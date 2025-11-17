@@ -1,4 +1,9 @@
-import os, re, ast, threading, json
+# pkg/memory_kg.py
+import os
+import re
+import ast
+import threading
+import json
 import networkx as nx
 from openai import OpenAI
 from langchain_openai import OpenAIEmbeddings
@@ -27,12 +32,18 @@ class LocalFileAdapter(MemoryAdapterBase):
     """Handles persistent storage of graph + FAISS vector DB per user profile."""
 
     def __init__(self, profile_name="default", embeddings=None):
+        # ✅ Use environment-based data directory
+        base_data_dir = os.getenv("DATA_DIR", "data")
+
+        # Each profile gets its own subdirectory
         self.profile_name = profile_name
-        self.profile_dir = os.path.join("data", profile_name)
+        self.profile_dir = os.path.join(base_data_dir, profile_name)
         os.makedirs(self.profile_dir, exist_ok=True)
 
+        # Define paths for graph and FAISS index
         self.kg_path = os.path.join(self.profile_dir, f"memory_{profile_name}.arrow")
         self.faiss_path = os.path.join(self.profile_dir, f"faiss_{profile_name}")
+
         self.embeddings = embeddings or OpenAIEmbeddings()
         self.vector_db = None
         self._lock = threading.Lock()
@@ -41,6 +52,7 @@ class LocalFileAdapter(MemoryAdapterBase):
     # Graph persistence
     # -------------------------------
     def save_graph(self, graph: nx.DiGraph):
+        """Save knowledge graph to Arrow file."""
         try:
             graph_dict = nx.node_link_data(graph, edges="links")
             table = pa.table({"graph": [json.dumps(graph_dict)]})
@@ -51,6 +63,7 @@ class LocalFileAdapter(MemoryAdapterBase):
             print(f"[ERROR] Failed to save KG: {e}")
 
     def load_graph(self) -> nx.DiGraph:
+        """Load knowledge graph from Arrow file."""
         if os.path.exists(self.kg_path):
             try:
                 with pa.memory_map(self.kg_path, "r") as source:
@@ -92,6 +105,7 @@ class LocalFileAdapter(MemoryAdapterBase):
         threading.Thread(target=_update, daemon=True).start()
 
     def load_embeddings(self):
+        """Load FAISS index from disk."""
         if os.path.exists(self.faiss_path):
             try:
                 self.vector_db = FAISS.load_local(
@@ -102,6 +116,7 @@ class LocalFileAdapter(MemoryAdapterBase):
                 print(f"[WARN] FAISS load failed: {e}")
 
     def search(self, query: str, top_k: int = 5) -> list[str]:
+        """Perform similarity search on stored embeddings."""
         if not self.vector_db:
             self.load_embeddings()
         if not self.vector_db:
@@ -231,6 +246,7 @@ class MemoryKG:
 # Frontend visualization helper
 # ============================================================
 def graph_to_json(graph: nx.Graph):
+    """Convert NetworkX graph to JSON format for frontend visualization."""
     nodes = [{"id": str(n), "label": str(graph.nodes[n].get("label", n))} for n in graph.nodes()]
     edges = [{"from": str(u), "to": str(v), "label": d.get("relation", "")} for u, v, d in graph.edges(data=True)]
     return {"nodes": nodes, "edges": edges}

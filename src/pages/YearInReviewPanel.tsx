@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 
 interface YearInReviewPanelProps {
   messages: { role: string; content: string }[];
