@@ -26,21 +26,17 @@ class MemoryAdapterBase:
 
 
 # ============================================================
-# Local File Adapter
+# Local File Adapter (graph + FAISS storage)
 # ============================================================
 class LocalFileAdapter(MemoryAdapterBase):
-    """Handles persistent storage of graph + FAISS vector DB per user profile."""
 
     def __init__(self, profile_name="default", embeddings=None):
-        # ✅ Use environment-based data directory
         base_data_dir = os.getenv("DATA_DIR", "data")
 
-        # Each profile gets its own subdirectory
         self.profile_name = profile_name
         self.profile_dir = os.path.join(base_data_dir, profile_name)
         os.makedirs(self.profile_dir, exist_ok=True)
 
-        # Define paths for graph and FAISS index
         self.kg_path = os.path.join(self.profile_dir, f"memory_{profile_name}.arrow")
         self.faiss_path = os.path.join(self.profile_dir, f"faiss_{profile_name}")
 
@@ -52,7 +48,6 @@ class LocalFileAdapter(MemoryAdapterBase):
     # Graph persistence
     # -------------------------------
     def save_graph(self, graph: nx.DiGraph):
-        """Save knowledge graph to Arrow file."""
         try:
             graph_dict = nx.node_link_data(graph, edges="links")
             table = pa.table({"graph": [json.dumps(graph_dict)]})
@@ -63,7 +58,6 @@ class LocalFileAdapter(MemoryAdapterBase):
             print(f"[ERROR] Failed to save KG: {e}")
 
     def load_graph(self) -> nx.DiGraph:
-        """Load knowledge graph from Arrow file."""
         if os.path.exists(self.kg_path):
             try:
                 with pa.memory_map(self.kg_path, "r") as source:
@@ -73,17 +67,15 @@ class LocalFileAdapter(MemoryAdapterBase):
                     graph_dict = json.loads(graph_json)
                     return nx.node_link_graph(graph_dict, edges="links")
             except Exception as e:
-                print(f"[WARN] Arrow load failed: {e}")
+                print(f"[WARN] Failed to load KG: {e}")
         return nx.DiGraph()
 
     # -------------------------------
     # Vector memory (FAISS)
     # -------------------------------
     def add_embeddings(self, new_summaries: list[str]):
-        """Add new embeddings to FAISS index safely."""
-        clean_texts = [t.strip() for t in new_summaries if isinstance(t, str) and t.strip()]
+        clean_texts = [t.strip() for t in new_summaries if t.strip()]
         if not clean_texts:
-            print("⚠️ Skipped FAISS update (no valid text)")
             return
 
         def _update():
@@ -91,32 +83,33 @@ class LocalFileAdapter(MemoryAdapterBase):
                 try:
                     if os.path.exists(self.faiss_path):
                         db = FAISS.load_local(
-                            self.faiss_path, self.embeddings, allow_dangerous_deserialization=True
+                            self.faiss_path,
+                            self.embeddings,
+                            allow_dangerous_deserialization=True,
                         )
                         db.add_texts(clean_texts)
                     else:
                         db = FAISS.from_texts(clean_texts, self.embeddings)
+
                     db.save_local(self.faiss_path)
                     self.vector_db = db
-                    print(f"[FAISS] ✅ Updated ({len(clean_texts)} new items)")
                 except Exception as e:
-                    print(f"[ERROR] FAISS update failed: {e}")
+                    print(f"[ERROR] FAISS update error: {e}")
 
         threading.Thread(target=_update, daemon=True).start()
 
     def load_embeddings(self):
-        """Load FAISS index from disk."""
         if os.path.exists(self.faiss_path):
             try:
                 self.vector_db = FAISS.load_local(
-                    self.faiss_path, self.embeddings, allow_dangerous_deserialization=True
+                    self.faiss_path,
+                    self.embeddings,
+                    allow_dangerous_deserialization=True,
                 )
-                print(f"[FAISS] ✅ Loaded for {self.profile_name}")
             except Exception as e:
-                print(f"[WARN] FAISS load failed: {e}")
+                print(f"[WARN] Failed to load FAISS: {e}")
 
     def search(self, query: str, top_k: int = 5) -> list[str]:
-        """Perform similarity search on stored embeddings."""
         if not self.vector_db:
             self.load_embeddings()
         if not self.vector_db:
@@ -130,10 +123,9 @@ class LocalFileAdapter(MemoryAdapterBase):
 
 
 # ============================================================
-# Memory Knowledge Graph
+# Memory Knowledge Graph (KG + FAISS)
 # ============================================================
 class MemoryKG:
-    """Combines knowledge graph and vector memory (FAISS) for persistent recall."""
 
     def __init__(self, adapter: MemoryAdapterBase, profile_name="default"):
         self.client = OpenAI()
@@ -147,19 +139,18 @@ class MemoryKG:
     # Triplet extraction
     # -------------------------------
     def _extract_triplets_chunk(self, messages_chunk):
-        """Extract factual (subject, predicate, object) triplets."""
         text = "\n".join(
-            m["content"] for m in messages_chunk
-            if m.get("role") in ["user", "assistant"] and isinstance(m.get("content"), str)
+            m["content"]
+            for m in messages_chunk
+            if m.get("role") in ["user", "assistant"]
         )
 
         if not text.strip():
             return []
 
         prompt = (
-            "Extract concise (subject, predicate, object) triplets OR high-level summaries "
-            "from the text below. If factual extraction fails, return meaningful summaries instead. "
-            "Return ONLY a valid Python list of tuples.\n\nText:\n"
+            "Extract concise (subject, predicate, object) triplets OR a list of summary "
+            "sentences from the following text. Return ONLY a Python list.\n\nText:\n"
             f"{text}"
         )
 
@@ -167,86 +158,108 @@ class MemoryKG:
             resp = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=300,
             )
             raw = resp.choices[0].message.content
             match = re.search(r"\[.*\]", raw, re.DOTALL)
             parsed = ast.literal_eval(match.group()) if match else []
-            triplets = []
+
+            out = []
             for t in parsed:
                 if isinstance(t, (tuple, list)) and len(t) == 3:
-                    triplets.append(tuple(map(str, t)))
-                elif isinstance(t, dict) and {"subject", "predicate", "object"}.issubset(t):
-                    triplets.append((t["subject"], t["predicate"], t["object"]))
-            return triplets
+                    out.append(tuple(map(str, t)))
+                else:
+                    out.append(("Summary", "says", str(t)))
+            return out
+
         except Exception as e:
             print(f"[WARN] Triplet extraction failed: {e}")
-            # fallback — return summaries
-            return [("User", "said", text[:200])]
+            return [("Summary", "says", text[:200])]
 
     # -------------------------------
-    # Graph management
+    # Graph utilities
     # -------------------------------
-    def _get_or_create_node(self, label):
+    def _node(self, label):
         for n, data in self.G.nodes(data=True):
             if data.get("label") == label:
                 return n
-        node_id = f"entity_{self.node_counter}"
+        new_id = f"entity_{self.node_counter}"
         self.node_counter += 1
-        self.G.add_node(node_id, type="Entity", label=label)
-        return node_id
+        self.G.add_node(new_id, label=label)
+        return new_id
 
     def add_chunk_to_graph(self, new_messages, photo_name=None):
-        """Add conversation messages to persistent graph + FAISS memory."""
-        clean_messages = [
+        clean = [
             {"role": m["role"], "content": m["content"]}
             for m in new_messages
-            if m.get("role") in ["user", "assistant"] and isinstance(m.get("content"), str)
+            if isinstance(m.get("content"), str)
         ]
-        if not clean_messages:
+        if not clean:
             return
 
-        triplets = self._extract_triplets_chunk(clean_messages)
-        if not triplets:
-            return
+        triplets = self._extract_triplets_chunk(clean)
 
-        new_summaries = []
+        summaries = []
         for s, p, o in triplets:
-            s_id = self._get_or_create_node(s)
-            o_id = self._get_or_create_node(o)
-            relation = f"{p} [photo: {photo_name}]" if photo_name else p
-            self.G.add_edge(s_id, o_id, relation=relation)
-            new_summaries.extend([f"{s} {p} {o}"])
+            s_id = self._node(s)
+            o_id = self._node(o)
+            rel = f"{p} [photo: {photo_name}]" if photo_name else p
+            self.G.add_edge(s_id, o_id, relation=rel)
+            summaries.append(f"{s} {p} {o}")
 
         self.adapter.save_graph(self.G)
-        self.adapter.add_embeddings(new_summaries)
+        self.adapter.add_embeddings(summaries)
 
     # -------------------------------
-    # Recall
+    # Retrieval
     # -------------------------------
     def retrieve_relevant_context(self, query, top_k=5):
-        """Combine semantic and structural recall."""
-        text_hits = self.adapter.search(query, top_k)
-        edge_context = []
+        memory_text = self.adapter.search(query, top_k)
 
-        for u, v, d in list(self.G.edges(data=True))[-30:]:
-            edge_context.append(
-                f"{self.G.nodes[u].get('label')} — {d.get('relation', '')} → {self.G.nodes[v].get('label')}"
+        graph_snippets = []
+        for u, v, d in list(self.G.edges(data=True))[-20:]:
+            graph_snippets.append(
+                f"{self.G.nodes[u].get('label')} — {d.get('relation')} → {self.G.nodes[v].get('label')}"
             )
 
-        context = ""
-        if text_hits:
-            context += "Semantic recall:\n" + "\n".join(text_hits)
-        if edge_context:
-            context += "\n\nGraph recall:\n" + "\n".join(edge_context[-10:])
-        return context.strip()
+        out = ""
+        if memory_text:
+            out += "Semantic memory:\n" + "\n".join(memory_text)
+        if graph_snippets:
+            out += "\n\nGraph memory:\n" + "\n".join(graph_snippets)
+        return out.strip()
+
+    # -------------------------------
+    # Dump everything (for Year-in-Review)
+    # -------------------------------
+    def dump_all(self):
+        lines = []
+
+        # Graph edges
+        for u, v, d in self.G.edges(data=True):
+            s = self.G.nodes[u].get("label")
+            o = self.G.nodes[v].get("label")
+            rel = d.get("relation", "")
+            lines.append(f"{s} — {rel} → {o}")
+
+        # FAISS memory
+        if self.adapter.vector_db and hasattr(self.adapter.vector_db, "texts"):
+            for t in self.adapter.vector_db.texts:
+                lines.append(t)
+
+        return "\n".join(lines)
 
 
 # ============================================================
-# Frontend visualization helper
+# Frontend helper
 # ============================================================
 def graph_to_json(graph: nx.Graph):
-    """Convert NetworkX graph to JSON format for frontend visualization."""
-    nodes = [{"id": str(n), "label": str(graph.nodes[n].get("label", n))} for n in graph.nodes()]
-    edges = [{"from": str(u), "to": str(v), "label": d.get("relation", "")} for u, v, d in graph.edges(data=True)]
-    return {"nodes": nodes, "edges": edges}
+    return {
+        "nodes": [
+            {"id": str(n), "label": graph.nodes[n].get("label", str(n))}
+            for n in graph.nodes()
+        ],
+        "edges": [
+            {"from": str(u), "to": str(v), "label": d.get("relation", "")}
+            for u, v, d in graph.edges(data=True)
+        ],
+    }

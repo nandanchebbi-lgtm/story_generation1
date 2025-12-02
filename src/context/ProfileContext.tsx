@@ -1,5 +1,5 @@
 // src/context/ProfileContext.tsx
-import { createContext, useState } from "react";
+import { createContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 
 /** Context type */
@@ -30,13 +30,27 @@ export const ProfileContext = createContext<ProfileContextType>({
 
 /** Provider */
 export const ProfileProvider = ({ children }: { children: ReactNode }) => {
-  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  // Restore selectedProfile from localStorage if exists
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(() => {
+    return localStorage.getItem("activeProfile") || null;
+  });
 
   /** Base64 for UI preview (optional) */
-  const [uploadedPhotoBase64, setUploadedPhotoBase64] = useState<string | null>(null);
+  const [uploadedPhotoBase64, setUploadedPhotoBase64] = useState<string | null>(
+    null
+  );
 
   /** Full backend public URL (required for ChatPage image display) */
   const [uploadedPhotoURL, setUploadedPhotoURL] = useState<string | null>(null);
+
+  // Persist selectedProfile to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedProfile) {
+      localStorage.setItem("activeProfile", selectedProfile);
+    } else {
+      localStorage.removeItem("activeProfile");
+    }
+  }, [selectedProfile]);
 
   return (
     <ProfileContext.Provider

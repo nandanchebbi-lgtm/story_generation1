@@ -7,7 +7,8 @@ services:
     env_file:
       - .env
     environment:
-      - DATA_DIR=/app/data
+      HOST_IP: "192.168.0.196"
+      DATA_DIR: "/app/data"
     ports:
       - "8000:8000"
     volumes:
@@ -21,12 +22,12 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        VITE_API_BASE: "http://192.168.0.196:8000"  # ✅ Correct mapping
+        VITE_API_BASE: "http://192.168.0.196:8000"
     container_name: mindlink-frontend
     depends_on:
       - backend
     environment:
-      - VITE_API_BASE=http://192.168.0.196:8000
+      VITE_API_BASE: "http://192.168.0.196:8000"
     ports:
       - "3000:80"
     networks:

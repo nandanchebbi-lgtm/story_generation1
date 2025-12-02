@@ -35,7 +35,7 @@ export interface GraphEdge {
 export async function addChunk(
   request: AddChunkRequest
 ): Promise<{ status: string }> {
-  const res = await axiosInstance.post(`/memory/add_chunk`, request, {
+  const res = await axiosInstance.post(`/api/memory/add_chunk`, request, {
     headers: { "Content-Type": "application/json" },
   });
   return res.data;
@@ -45,7 +45,7 @@ export async function addChunk(
 export async function retrieveContext(
   request: RetrieveContextRequest
 ): Promise<{ context: string }> {
-  const res = await axiosInstance.post(`/memory/retrieve_context`, request, {
+  const res = await axiosInstance.post(`/api/memory/retrieve_context`, request, {
     headers: { "Content-Type": "application/json" },
   });
   return res.data;
@@ -53,7 +53,7 @@ export async function retrieveContext(
 
 /** Fetch entire graph for a profile */
 export const fetchGraph = async (profile: string) => {
-  const res = await axiosInstance.get(`/graph/${profile}`);
+  const res = await axiosInstance.get(`/api/graph/${profile}`);
   if (res.status !== 200) throw new Error("Failed to fetch graph");
   return res.data;
 };

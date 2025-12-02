@@ -75,7 +75,7 @@ const ProfilePanel: React.FC = () => {
       await selectProfile(name);
       setSelectedProfile(name);
       console.log(`[PROFILE] Selected: ${name}`);
-      navigate("/fortune-cookie");
+      navigate("/cookies");
     } catch (err: any) {
       console.error("Failed to select profile", err);
       setError(err?.message || "Failed to select profile");

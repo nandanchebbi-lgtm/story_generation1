@@ -1,6 +1,13 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 export default function Navbar() {
+  const location = useLocation(); // track current route
+
+  const navItems = [
+    { to: "/cookies", label: "Cookies" },
+    { to: "/chat", label: "Chat" },
+  ];
+
   return (
     <nav
       style={{
@@ -16,32 +23,34 @@ export default function Navbar() {
         fontFamily: "Rubik, sans-serif",
       }}
     >
-      {[
-        { to: "/fortune", label: "Cookies" },
-        { to: "/chat", label: "Chat" },
-      ].map((item) => (
-        <Link
-          key={item.to}
-          to={item.to}
-          style={{
-            color: "#d6523a",
-            textDecoration: "none",
-            fontWeight: 500,
-            fontSize: "1.1rem",
-            padding: "0.4rem 0.8rem",
-            borderRadius: 8,
-            transition: "all 0.25s ease",
-          }}
-          onMouseOver={(e) =>
-            (e.currentTarget.style.backgroundColor = "#ffe9e2")
-          }
-          onMouseOut={(e) =>
-            (e.currentTarget.style.backgroundColor = "transparent")
-          }
-        >
-          {item.label}
-        </Link>
-      ))}
+      {navItems.map((item) => {
+        const isActive = location.pathname === item.to; // highlight active tab
+
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            style={{
+              color: isActive ? "#fff" : "#d6523a",
+              backgroundColor: isActive ? "#e25b45" : "transparent",
+              textDecoration: "none",
+              fontWeight: 500,
+              fontSize: "1.1rem",
+              padding: "0.4rem 0.8rem",
+              borderRadius: 8,
+              transition: "all 0.25s ease",
+            }}
+            onMouseOver={(e) =>
+              (e.currentTarget.style.backgroundColor = isActive ? "#e25b45" : "#ffe9e2")
+            }
+            onMouseOut={(e) =>
+              (e.currentTarget.style.backgroundColor = isActive ? "#e25b45" : "transparent")
+            }
+          >
+            {item.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

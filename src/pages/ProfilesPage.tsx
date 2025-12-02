@@ -9,7 +9,7 @@ import {
   selectProfile,
 } from "../api/profiles";
 import { ProfileContext } from "../context/ProfileContext";
-import profileIcon from "../assets/profile_icon.svg";
+import profileIcon from "../assets/colorful_profile.png";
 
 // Default avatars
 const DEFAULT_AVATARS = [profileIcon, profileIcon, profileIcon, profileIcon];
@@ -28,6 +28,9 @@ export default function ProfilesPage() {
   const [openedProfile, setOpenedProfile] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // --------------------------
+  // Load Profiles
+  // --------------------------
   const loadProfiles = async () => {
     try {
       setError(null);
@@ -44,21 +47,25 @@ export default function ProfilesPage() {
 
   useEffect(() => {
     loadProfiles();
-    const savedProfile = localStorage.getItem("activeProfile");
-    if (savedProfile) setSelectedProfile(savedProfile);
+    // Restore selectedProfile UI from context (already persistent in ProfileContext)
+    if (selectedProfile) {
+      setOpenedProfile(selectedProfile);
+    }
   }, []);
 
+  // --------------------------
+  // Handlers
+  // --------------------------
   const handleCreate = async () => {
     if (!newProfile.trim()) return;
     try {
       setLoading(true);
       const profile = await createProfile(newProfile.trim());
-      setSelectedProfile(profile.name);
-      localStorage.setItem("activeProfile", profile.name);
+      setSelectedProfile(profile.name); // Updates context + localStorage
       setNewProfile("");
-      await loadProfiles();
       setShowCreate(false);
-      navigate("/fortune");
+      await loadProfiles();
+      navigate("/cookies");
     } catch (err) {
       console.error(err);
       setError("Failed to create profile");
@@ -73,7 +80,9 @@ export default function ProfilesPage() {
       await deleteProfile(name);
       if (selectedProfile === name) {
         setSelectedProfile(null);
-        localStorage.removeItem("activeProfile");
+      }
+      if (openedProfile === name) {
+        setOpenedProfile(null);
       }
       await loadProfiles();
     } catch (err) {
@@ -88,9 +97,8 @@ export default function ProfilesPage() {
     try {
       setLoading(true);
       await selectProfile(name);
-      setSelectedProfile(name);
-      localStorage.setItem("activeProfile", name);
-      navigate("/fortune");
+      setSelectedProfile(name); // Updates context + localStorage
+      navigate("/cookies");
     } catch (err) {
       console.error(err);
       setError("Failed to select profile");
@@ -335,14 +343,16 @@ export default function ProfilesPage() {
               <button
                 onClick={() => setShowCreate(false)}
                 style={{
-                  padding: "15px 15px",
-                  backgroundColor: "transparent",
-                  border: "1px solid #e25b45",
-                  borderRadius: 4,
-                  color: "#e25b45",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
+                          padding: "12px 30px", // wider horizontally
+                          backgroundColor: "#fff8f6",
+                          border: "2px solid #e25b45",
+                          borderRadius: 25, // make it rounded/pill-shaped
+                          color: "#e25b45",
+                          cursor: "pointer",
+                          fontWeight: 500,
+                          transition: "all 0.3s ease",
+                          boxShadow: "0 0 10px rgba(226,91,69,0.2)",
+                      }}
                 onMouseOver={(e) =>
                   (e.currentTarget.style.backgroundColor = "#ffe8e3")
                 }

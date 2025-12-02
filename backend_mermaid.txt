@@ -1,0 +1,35 @@
+flowchart TD
+    A[Incoming API Request] --> B{Route Type?}
+
+    %% GPT-4o Vision Chat
+    B -->|/api/gpt4v/chat| C[Extract profile + message + selected photo]
+    C --> D[Retrieve STM context from recent messages]
+    D --> E[Retrieve LTM context via FAISS semantic search]
+    E --> F[Merge STM + LTM]
+    F --> G[Optionally enrich with Knowledge Graph traversal]
+    G --> H[Send enriched prompt to GPT-4o / GPT-4o-mini]
+    H --> I[Parse AI reply and memory-worthy content]
+    I --> J[Insert new memory into FAISS + update KG]
+    J --> K[Return response to frontend]
+
+    %% Photo Upload
+    B -->|/api/photos/upload| L[Accept image file]
+    L --> M[Store image in data/uploads/<profile>]
+    M --> N[Generate public_url and save metadata]
+    N --> K
+
+    %% Select Photo
+    B -->|/api/photos/select| O[Set selected_image.json]
+    O --> K
+
+    %% Memory Access
+    B -->|/api/memory/retrieve_context| P[Query FAISS index]
+    P --> K
+
+    %% Agent / Knowledge Graph
+    B -->|/api/agent/state| Q[Load graph.json and return nodes/edges]
+    Q --> K
+
+    %% Profiles
+    B -->|/api/profiles/*| R[Create/Delete/List/Select Profile]
+    R --> K

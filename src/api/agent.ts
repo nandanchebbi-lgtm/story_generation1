@@ -6,9 +6,9 @@ export interface GraphState {
   edges: { from: string; to: string }[];
 }
 
-// ✅ Fetch the knowledge graph for a profile
+// Fetch the knowledge graph for a profile
 export async function fetchKnowledgeGraph(profile: string): Promise<GraphState> {
-  const res = await axiosInstance.get(`/agent/state`, {
+  const res = await axiosInstance.get(`/api/agent/state`, {
     params: { profile },
   });
 

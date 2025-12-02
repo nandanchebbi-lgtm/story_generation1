@@ -1,9 +1,15 @@
+# ===============================
+# Mindlink Backend Dockerfile
+# ===============================
 FROM python:3.13-slim
 
+# Set env vars
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DATA_DIR=/app/data
+    DATA_DIR=/app/data \
+    BACKEND_BASE_URL=http://127.0.0.1:8000
 
+# Install system dependencies (includes git)
 RUN apt-get update && apt-get install -y \
     git \
     build-essential \
@@ -12,9 +18,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 COPY requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY pkg ./pkg
+
 RUN mkdir -p /app/data
 
 EXPOSE 8000

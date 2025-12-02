@@ -19,9 +19,9 @@ export default function ChatPage() {
   const { selectedProfile, uploadedPhotoURL } = useContext(ProfileContext);
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [messages, setMessages] = useState<
-    { role: string; content: string }[]
-  >([]);
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>(
+    []
+  );
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ export default function ChatPage() {
 
   const API_BASE = `${import.meta.env.VITE_API_BASE}/api/gpt4v`;
 
-  /** Load uploaded image URL */
+  /** Load uploaded image URL (public URL for display) */
   useEffect(() => {
     if (uploadedPhotoURL) {
       setImageUrl(normalizeImageUrl(uploadedPhotoURL));
@@ -68,6 +68,13 @@ export default function ChatPage() {
       const form = new FormData();
       form.append("profile", selectedProfile);
       form.append("user_message", input);
+
+      // ⭐ NEW: Send the displayed image to GPT so it can "see" it
+      if (imageUrl) {
+        const imgRes = await fetch(imageUrl);
+        const imgBlob = await imgRes.blob();
+        form.append("image", imgBlob, "photo.jpg");
+      }
 
       const res = await axios.post(`${API_BASE}/chat`, form);
       const reply = res.data.reply || "⚠️ No response from server.";

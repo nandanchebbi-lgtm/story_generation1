@@ -16,6 +16,12 @@ export default function FortuneCookiePage() {
     "Loading your year in review..."
   );
 
+  const [completedCookies, setCompletedCookies] = useState<number[]>([]);
+  const [previousPhotoURL, setPreviousPhotoURL] = useState<string | null>(null);
+  const [conversationSummary, setConversationSummary] = useState<string | null>(
+    null
+  );
+
   const API_BASE = `${import.meta.env.VITE_API_BASE}/api/gpt4v`;
 
   const cookies = [
@@ -35,7 +41,29 @@ export default function FortuneCookiePage() {
     setOpenedIndex(index === openedIndex ? null : index);
     setFile(null);
     setReply("");
+
+    if (selectedProfile != null) {
+      const savedPhoto = localStorage.getItem(
+        `previousPhotoURL_${selectedProfile}_${index}`
+      );
+      const savedSummary = localStorage.getItem(
+        `conversationSummary_${selectedProfile}_${index}`
+      );
+
+      setPreviousPhotoURL(savedPhoto || null);
+      setConversationSummary(savedSummary || null);
+    }
   };
+
+  useEffect(() => {
+    if (!selectedProfile) return;
+    const saved = localStorage.getItem(`completedCookies_${selectedProfile}`);
+    if (saved) {
+      setCompletedCookies(JSON.parse(saved));
+    } else {
+      setCompletedCookies([]);
+    }
+  }, [selectedProfile]);
 
   useEffect(() => {
     if (!selectedProfile) return;
@@ -52,8 +80,7 @@ export default function FortuneCookiePage() {
 
         const data = await res.json();
         setYearReview(data.reply || "No highlights yet — start your journey!");
-      } catch (err) {
-        console.error("Failed to load Year-In-Review:", err);
+      } catch {
         setYearReview("⚠️ Could not load year-in-review.");
       }
     };
@@ -68,6 +95,7 @@ export default function FortuneCookiePage() {
     }
 
     setLoading(true);
+
     try {
       const toBase64 = (file: File) =>
         new Promise<string>((resolve, reject) => {
@@ -78,8 +106,8 @@ export default function FortuneCookiePage() {
         });
 
       const base64 = await toBase64(file);
-      localStorage.setItem("uploadedPhotoBase64", base64);
       setUploadedPhotoBase64(base64);
+      localStorage.setItem("uploadedPhotoBase64", base64);
 
       const formData = new FormData();
       formData.append("file", file);
@@ -94,36 +122,58 @@ export default function FortuneCookiePage() {
       const filename = uploadData.filename;
 
       if (uploadData.public_url) {
-        localStorage.setItem("uploadedPhotoURL", uploadData.public_url);
         setUploadedPhotoURL(uploadData.public_url);
+        localStorage.setItem("uploadedPhotoURL", uploadData.public_url);
+
+        if (openedIndex !== null) {
+          localStorage.setItem(
+            `previousPhotoURL_${selectedProfile}_${openedIndex}`,
+            uploadData.public_url
+          );
+        }
       }
 
       const selectRes = await fetch(
-        `${API_BASE}/select?profile=${encodeURIComponent(selectedProfile)}&image_name=${encodeURIComponent(filename)}`,
+        `${API_BASE}/select?profile=${encodeURIComponent(
+          selectedProfile
+        )}&image_name=${encodeURIComponent(filename)}`,
         { method: "POST" }
       );
 
       const data = await selectRes.json();
 
-      if (data.public_url) {
-        localStorage.setItem("uploadedPhotoURL", data.public_url);
-        setUploadedPhotoURL(data.public_url);
+      if (data.auto_reply) {
+        const initialChat = [
+          { role: "user", content: "Let's talk about this photo." },
+          { role: "assistant", content: data.auto_reply },
+        ];
+
+        localStorage.setItem("initialChat", JSON.stringify(initialChat));
       }
 
-      if (data.auto_reply) {
+      // ✅ Save full conversation summary
+      if (data.conversation_summary && openedIndex !== null) {
         localStorage.setItem(
-          "initialChat",
-          JSON.stringify([
-            { role: "user", content: "Let's talk about this photo." },
-            { role: "assistant", content: data.auto_reply },
-          ])
+          `conversationSummary_${selectedProfile}_${openedIndex}`,
+          data.conversation_summary
+        );
+        setConversationSummary(data.conversation_summary);
+      }
+
+      if (openedIndex !== null) {
+        const updated = Array.from(new Set([...completedCookies, openedIndex]));
+        setCompletedCookies(updated);
+
+        localStorage.setItem(
+          `completedCookies_${selectedProfile}`,
+          JSON.stringify(updated)
         );
       }
 
       navigate("/chat");
     } catch (err) {
       console.error(err);
-      setReply("⚠️ Upload failed. See console.");
+      setReply("⚠️ Upload failed.");
     } finally {
       setLoading(false);
     }
@@ -196,7 +246,11 @@ export default function FortuneCookiePage() {
                 color: openedIndex === index ? "#fff" : "#7a4b3d",
               }}
             >
-              {openedIndex === index ? "🍪 Opened!" : "🥠 Click Me"}
+              {completedCookies.includes(index)
+                ? "✓ Completed"
+                : openedIndex === index
+                ? "🍪 Opened!"
+                : "🥠 Click Me"}
             </div>
           ))}
         </div>
@@ -237,6 +291,47 @@ export default function FortuneCookiePage() {
               }}
             />
 
+            {previousPhotoURL && (
+              <div style={{ marginBottom: 20, textAlign: "center" }}>
+                <p
+                  style={{
+                    fontSize: "0.9rem",
+                    color: "#7a4b3d",
+                    marginBottom: 8,
+                  }}
+                >
+                  Previously used photo:
+                </p>
+                <img
+                  src={previousPhotoURL}
+                  alt="Previous"
+                  style={{
+                    width: "100%",
+                    borderRadius: 10,
+                    boxShadow: "0 4px 10px rgba(0,0,0,0.15)",
+                  }}
+                />
+              </div>
+            )}
+
+            {conversationSummary && (
+              <div
+                style={{
+                  backgroundColor: "#ffe9e2",
+                  padding: 12,
+                  borderRadius: 10,
+                  marginBottom: 20,
+                  width: "100%",
+                  color: "#5a3b32",
+                }}
+              >
+                <b>Last Conversation Summary:</b>
+                <p style={{ whiteSpace: "pre-wrap", marginTop: 6 }}>
+                  {conversationSummary}
+                </p>
+              </div>
+            )}
+
             <div
               style={{
                 display: "flex",
@@ -274,12 +369,6 @@ export default function FortuneCookiePage() {
                   boxShadow: "0 4px 12px rgba(226,91,69,0.3)",
                   transition: "all 0.25s ease",
                 }}
-                onMouseOver={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#d64b36")
-                }
-                onMouseOut={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#e25b45")
-                }
               >
                 {loading ? "Uploading..." : "Upload & Open Chat"}
               </button>
@@ -306,7 +395,6 @@ export default function FortuneCookiePage() {
         )}
       </div>
 
-      {/* RIGHT PANEL */}
       <div
         style={{
           flex: "0 0 30%",

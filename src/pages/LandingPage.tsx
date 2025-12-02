@@ -43,7 +43,7 @@ export default function LandingPage() {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1, duration: 0.6 }}
-        onClick={() => navigate("/profiles")}
+        onClick={() => navigate("/how-to-use")}
         className="bg-[#e25b45] hover:bg-[#d64d3a] px-10 py-3 rounded-xl text-lg font-semibold transition-all shadow-lg hover:shadow-[0_0_25px_rgba(226,91,69,0.4)] text-white"
       >
         Get Started

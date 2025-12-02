@@ -11,7 +11,9 @@
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.92);
-  background-color: #121212;
+
+  /* REMOVE solid background so gradients work */
+  background-color: transparent;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -32,10 +34,11 @@ body,
   min-height: 100vh;
 }
 
+/* Make body transparent so component can supply background */
 body {
   display: flex;
   flex-direction: column;
-  background-color: #121212;
+  background: transparent !important;
   color: rgba(255, 255, 255, 0.92);
   font-family: "Rubik", system-ui, sans-serif;
 }
@@ -107,11 +110,13 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #ffffff;
+
+    /* Remove this so gradient still shows */
+    background-color: transparent;
   }
 
   body {
-    background-color: #ffffff;
+    background-color: transparent !important;
     color: #213547;
   }
 

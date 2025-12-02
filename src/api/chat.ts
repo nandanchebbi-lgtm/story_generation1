@@ -6,7 +6,7 @@ export interface ChatResponse {
   selected_image?: string;
 }
 
-// ✅ Sends message to GPT, including the profile
+// Sends message to GPT, including the profile
 export async function sendMessage(
   profile: string,
   userMessage: string
@@ -15,7 +15,7 @@ export async function sendMessage(
   formData.append("user_message", userMessage);
   formData.append("profile", profile);
 
-  const res = await axiosInstance.post<ChatResponse>(`/gpt4v/chat`, formData, {
+  const res = await axiosInstance.post<ChatResponse>(`/api/gpt4v/chat`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 
