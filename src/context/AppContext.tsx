@@ -8,7 +8,7 @@ interface SelectedImage {
 
 interface AppContextType {
   selectedImage: SelectedImage | null;
-  setSelectedImage: (image: SelectedImage | null) => void;
+  updateImage: (image: SelectedImage | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -16,27 +16,39 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+
+  // Restore previous image only if localStorage contains both fields
   const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(
     () => {
-      // 🔹 Restore image on refresh (if available)
       const storedUrl = localStorage.getItem("uploadedPhoto");
       const storedFilename = localStorage.getItem("uploadedFilename");
-      return storedUrl && storedFilename
-        ? { filename: storedFilename, public_url: storedUrl }
-        : null;
+
+      if (storedUrl && storedFilename) {
+        return { filename: storedFilename, public_url: storedUrl };
+      }
+      return null;
     }
   );
 
-  // 🔹 Keep in sync with localStorage
-  React.useEffect(() => {
-    if (selectedImage) {
-      localStorage.setItem("uploadedPhoto", selectedImage.public_url);
-      localStorage.setItem("uploadedFilename", selectedImage.filename);
+  // 🔥 NEW — centralised safe update with cleanup
+  const updateImage = (image: SelectedImage | null) => {
+    if (image === null) {
+      // Clear old data fully
+      localStorage.removeItem("uploadedPhoto");
+      localStorage.removeItem("uploadedFilename");
+      setSelectedImage(null);
+      return;
     }
-  }, [selectedImage]);
+
+    // Write new data
+    localStorage.setItem("uploadedPhoto", image.public_url);
+    localStorage.setItem("uploadedFilename", image.filename);
+
+    setSelectedImage(image);
+  };
 
   return (
-    <AppContext.Provider value={{ selectedImage, setSelectedImage }}>
+    <AppContext.Provider value={{ selectedImage, updateImage }}>
       {children}
     </AppContext.Provider>
   );

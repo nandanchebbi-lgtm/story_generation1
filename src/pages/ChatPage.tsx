@@ -1,4 +1,5 @@
 // src/pages/ChatPage.tsx
+
 import { useState, useEffect, useContext, useRef } from "react";
 import axios from "axios";
 import { ProfileContext } from "../context/ProfileContext";
@@ -33,6 +34,8 @@ export default function ChatPage() {
   useEffect(() => {
     if (uploadedPhotoURL) {
       setImageUrl(normalizeImageUrl(uploadedPhotoURL));
+    } else {
+      setImageUrl(null);
     }
   }, [uploadedPhotoURL]);
 
@@ -64,14 +67,17 @@ export default function ChatPage() {
     setInput("");
     setLoading(true);
 
+    // Correct unified image source
+    const imageForGPT = uploadedPhotoURL;
+
     try {
       const form = new FormData();
       form.append("profile", selectedProfile);
       form.append("user_message", input);
 
-      // ⭐ NEW: Send the displayed image to GPT so it can "see" it
-      if (imageUrl) {
-        const imgRes = await fetch(imageUrl);
+      /** Send image if available */
+      if (imageForGPT) {
+        const imgRes = await fetch(normalizeImageUrl(imageForGPT)!);
         const imgBlob = await imgRes.blob();
         form.append("image", imgBlob, "photo.jpg");
       }
@@ -111,10 +117,7 @@ export default function ChatPage() {
     } catch {
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: "⚠️ Unable to load review.",
-        },
+        { role: "assistant", content: "⚠️ Unable to load review." },
       ]);
     }
   };

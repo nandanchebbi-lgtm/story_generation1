@@ -7,11 +7,11 @@ export interface ProfileContextType {
   selectedProfile: string | null;
   setSelectedProfile: (profile: string | null) => void;
 
-  /** Base64 preview for UI only (optional) */
+  /** Base64 preview for UI only */
   uploadedPhotoBase64: string | null;
   setUploadedPhotoBase64: (base64: string | null) => void;
 
-  /** The REAL image URL from backend (public_url) */
+  /** Real backend public URL */
   uploadedPhotoURL: string | null;
   setUploadedPhotoURL: (url: string | null) => void;
 }
@@ -30,26 +30,68 @@ export const ProfileContext = createContext<ProfileContextType>({
 
 /** Provider */
 export const ProfileProvider = ({ children }: { children: ReactNode }) => {
-  // Restore selectedProfile from localStorage if exists
+  /** ---------------------------
+   *  Restore selected profile
+   * ---------------------------- */
   const [selectedProfile, setSelectedProfile] = useState<string | null>(() => {
     return localStorage.getItem("activeProfile") || null;
   });
 
-  /** Base64 for UI preview (optional) */
+  /** Base64 preview (not persisted) */
   const [uploadedPhotoBase64, setUploadedPhotoBase64] = useState<string | null>(
-    null
+    () => {
+      return localStorage.getItem("profileUploadedBase64") || null;
+    }
   );
 
-  /** Full backend public URL (required for ChatPage image display) */
-  const [uploadedPhotoURL, setUploadedPhotoURL] = useState<string | null>(null);
+  /** Real URL (persisted) */
+  const [uploadedPhotoURL, setUploadedPhotoURL] = useState<string | null>(() => {
+    return localStorage.getItem("profileUploadedURL") || null;
+  });
 
-  // Persist selectedProfile to localStorage whenever it changes
+  /** ---------------------------
+   * Persist selected profile
+   * ---------------------------- */
   useEffect(() => {
     if (selectedProfile) {
       localStorage.setItem("activeProfile", selectedProfile);
     } else {
       localStorage.removeItem("activeProfile");
     }
+  }, [selectedProfile]);
+
+  /** ---------------------------
+   * Sync image URL + Base64 preview
+   * ---------------------------- */
+  useEffect(() => {
+    if (uploadedPhotoURL === null) {
+      // Cleanup stale data
+      localStorage.removeItem("profileUploadedURL");
+    } else {
+      localStorage.setItem("profileUploadedURL", uploadedPhotoURL);
+    }
+  }, [uploadedPhotoURL]);
+
+  useEffect(() => {
+    if (uploadedPhotoBase64 === null) {
+      localStorage.removeItem("profileUploadedBase64");
+    } else {
+      localStorage.setItem("profileUploadedBase64", uploadedPhotoBase64);
+    }
+  }, [uploadedPhotoBase64]);
+
+  /** ---------------------------
+   * When switching profiles:
+   * Reset all image data completely
+   * ---------------------------- */
+  useEffect(() => {
+    // Reset state
+    setUploadedPhotoBase64(null);
+    setUploadedPhotoURL(null);
+
+    // Reset localStorage
+    localStorage.removeItem("profileUploadedURL");
+    localStorage.removeItem("profileUploadedBase64");
   }, [selectedProfile]);
 
   return (
