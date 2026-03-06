@@ -1,4 +1,3 @@
-// src/pages/FortuneCookiePage.tsx
 import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProfileContext } from "../context/ProfileContext";
@@ -151,7 +150,6 @@ export default function FortuneCookiePage() {
         localStorage.setItem("initialChat", JSON.stringify(initialChat));
       }
 
-      // ✅ Save full conversation summary
       if (data.conversation_summary && openedIndex !== null) {
         localStorage.setItem(
           `conversationSummary_${selectedProfile}_${openedIndex}`,

@@ -1,10 +1,7 @@
-// src/pages/ChatPage.tsx
-
 import { useState, useEffect, useContext, useRef } from "react";
 import axios from "axios";
 import { ProfileContext } from "../context/ProfileContext";
 
-/** Normalize backend image URL (LAN + Docker safe) */
 function normalizeImageUrl(url: string | null): string | null {
   if (!url) return null;
 
@@ -30,7 +27,6 @@ export default function ChatPage() {
 
   const API_BASE = `${import.meta.env.VITE_API_BASE}/api/gpt4v`;
 
-  /** Load uploaded image URL (public URL for display) */
   useEffect(() => {
     if (uploadedPhotoURL) {
       setImageUrl(normalizeImageUrl(uploadedPhotoURL));
@@ -39,7 +35,6 @@ export default function ChatPage() {
     }
   }, [uploadedPhotoURL]);
 
-  /** Load initial messages (from Fortune Page) */
   useEffect(() => {
     const stored = localStorage.getItem("initialChat");
     if (stored) {
@@ -53,12 +48,10 @@ export default function ChatPage() {
     }
   }, []);
 
-  /** Auto-scroll */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /** Send message */
   const handleSend = async () => {
     if (!input.trim() || !selectedProfile) return;
 
@@ -67,7 +60,6 @@ export default function ChatPage() {
     setInput("");
     setLoading(true);
 
-    // Correct unified image source
     const imageForGPT = uploadedPhotoURL;
 
     try {
@@ -75,7 +67,6 @@ export default function ChatPage() {
       form.append("profile", selectedProfile);
       form.append("user_message", input);
 
-      /** Send image if available */
       if (imageForGPT) {
         const imgRes = await fetch(normalizeImageUrl(imageForGPT)!);
         const imgBlob = await imgRes.blob();
@@ -97,7 +88,6 @@ export default function ChatPage() {
     }
   };
 
-  /** Year-in-Review button */
   const handleYearInReview = async () => {
     if (!selectedProfile) return;
 
@@ -139,7 +129,6 @@ export default function ChatPage() {
         color: "#3b2a28",
       }}
     >
-      {/* LEFT: image panel */}
       <div
         style={{
           flex: 1,
@@ -169,9 +158,7 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* RIGHT: chat panel */}
       <div style={{ flex: 1.5, display: "flex", flexDirection: "column" }}>
-        {/* Header */}
         <div
           style={{
             backgroundColor: "#e25b45",

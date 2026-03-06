@@ -66,9 +66,8 @@ export default defineConfig([
         project: ['./tsconfig.node.json', './tsconfig.app.json'],
         tsconfigRootDir: import.meta.dirname,
       },
-      // other options...
     },
   },
 ])
-```
-PS C:\Users\nanda\mindlink> poetry run uvicorn pkg.app.main:app --reload --host 0.0.0.0 --port 8000    
+
+poetry run uvicorn pkg.app.main:app --reload --host 0.0.0.0 --port 8000    

@@ -7,7 +7,7 @@ export interface ProfileContextType {
   selectedProfile: string | null;
   setSelectedProfile: (profile: string | null) => void;
 
-  /** Base64 preview for UI only */
+  /** Base64 preview for UI only (not persisted in localStorage) */
   uploadedPhotoBase64: string | null;
   setUploadedPhotoBase64: (base64: string | null) => void;
 
@@ -37,11 +37,9 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     return localStorage.getItem("activeProfile") || null;
   });
 
-  /** Base64 preview (not persisted) */
+  /** Base64 preview (UI-only, not persisted) */
   const [uploadedPhotoBase64, setUploadedPhotoBase64] = useState<string | null>(
-    () => {
-      return localStorage.getItem("profileUploadedBase64") || null;
-    }
+    null
   );
 
   /** Real URL (persisted) */
@@ -61,37 +59,33 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   }, [selectedProfile]);
 
   /** ---------------------------
-   * Sync image URL + Base64 preview
+   * Persist image URL
    * ---------------------------- */
   useEffect(() => {
     if (uploadedPhotoURL === null) {
-      // Cleanup stale data
       localStorage.removeItem("profileUploadedURL");
     } else {
       localStorage.setItem("profileUploadedURL", uploadedPhotoURL);
     }
   }, [uploadedPhotoURL]);
 
-  useEffect(() => {
-    if (uploadedPhotoBase64 === null) {
-      localStorage.removeItem("profileUploadedBase64");
-    } else {
-      localStorage.setItem("profileUploadedBase64", uploadedPhotoBase64);
-    }
-  }, [uploadedPhotoBase64]);
+  /** ---------------------------
+   * Optional: Safe setter for Base64
+   * Never persists to localStorage to avoid quota issues
+   * ---------------------------- */
+  const safeSetUploadedPhotoBase64 = (base64: string | null) => {
+    setUploadedPhotoBase64(base64);
+  };
 
   /** ---------------------------
    * When switching profiles:
    * Reset all image data completely
    * ---------------------------- */
   useEffect(() => {
-    // Reset state
     setUploadedPhotoBase64(null);
     setUploadedPhotoURL(null);
 
-    // Reset localStorage
     localStorage.removeItem("profileUploadedURL");
-    localStorage.removeItem("profileUploadedBase64");
   }, [selectedProfile]);
 
   return (
@@ -101,7 +95,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
         setSelectedProfile,
 
         uploadedPhotoBase64,
-        setUploadedPhotoBase64,
+        setUploadedPhotoBase64: safeSetUploadedPhotoBase64,
 
         uploadedPhotoURL,
         setUploadedPhotoURL,

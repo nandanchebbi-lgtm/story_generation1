@@ -1,4 +1,3 @@
-# pkg/memory_kg.py
 import os
 import re
 import ast
@@ -13,10 +12,6 @@ import pyarrow.ipc as ipc
 
 SHORT_TERM_WINDOW = 15
 
-
-# ============================================================
-# Base Adapter
-# ============================================================
 class MemoryAdapterBase:
     def save_graph(self, graph: nx.DiGraph): raise NotImplementedError
     def load_graph(self) -> nx.DiGraph: raise NotImplementedError
@@ -24,10 +19,6 @@ class MemoryAdapterBase:
     def load_embeddings(self): raise NotImplementedError
     def search(self, query: str, top_k: int = 5) -> list[str]: raise NotImplementedError
 
-
-# ============================================================
-# Local File Adapter (graph + FAISS storage)
-# ============================================================
 class LocalFileAdapter(MemoryAdapterBase):
 
     def __init__(self, profile_name="default", embeddings=None):
@@ -44,9 +35,6 @@ class LocalFileAdapter(MemoryAdapterBase):
         self.vector_db = None
         self._lock = threading.Lock()
 
-    # -------------------------------
-    # Graph persistence
-    # -------------------------------
     def save_graph(self, graph: nx.DiGraph):
         try:
             graph_dict = nx.node_link_data(graph, edges="links")
@@ -70,9 +58,6 @@ class LocalFileAdapter(MemoryAdapterBase):
                 print(f"[WARN] Failed to load KG: {e}")
         return nx.DiGraph()
 
-    # -------------------------------
-    # Vector memory (FAISS)
-    # -------------------------------
     def add_embeddings(self, new_summaries: list[str]):
         clean_texts = [t.strip() for t in new_summaries if t.strip()]
         if not clean_texts:
@@ -121,10 +106,6 @@ class LocalFileAdapter(MemoryAdapterBase):
             print(f"[ERROR] FAISS search failed: {e}")
             return []
 
-
-# ============================================================
-# Memory Knowledge Graph (KG + FAISS)
-# ============================================================
 class MemoryKG:
 
     def __init__(self, adapter: MemoryAdapterBase, profile_name="default"):
@@ -135,9 +116,6 @@ class MemoryKG:
         self.adapter.load_embeddings()
         self.node_counter = len(self.G.nodes)
 
-    # -------------------------------
-    # Triplet extraction
-    # -------------------------------
     def _extract_triplets_chunk(self, messages_chunk):
         text = "\n".join(
             m["content"]
@@ -175,9 +153,6 @@ class MemoryKG:
             print(f"[WARN] Triplet extraction failed: {e}")
             return [("Summary", "says", text[:200])]
 
-    # -------------------------------
-    # Graph utilities
-    # -------------------------------
     def _node(self, label):
         for n, data in self.G.nodes(data=True):
             if data.get("label") == label:
@@ -209,9 +184,6 @@ class MemoryKG:
         self.adapter.save_graph(self.G)
         self.adapter.add_embeddings(summaries)
 
-    # -------------------------------
-    # Retrieval
-    # -------------------------------
     def retrieve_relevant_context(self, query, top_k=5):
         memory_text = self.adapter.search(query, top_k)
 
@@ -228,30 +200,21 @@ class MemoryKG:
             out += "\n\nGraph memory:\n" + "\n".join(graph_snippets)
         return out.strip()
 
-    # -------------------------------
-    # Dump everything (for Year-in-Review)
-    # -------------------------------
     def dump_all(self):
         lines = []
 
-        # Graph edges
         for u, v, d in self.G.edges(data=True):
             s = self.G.nodes[u].get("label")
             o = self.G.nodes[v].get("label")
             rel = d.get("relation", "")
             lines.append(f"{s} — {rel} → {o}")
 
-        # FAISS memory
         if self.adapter.vector_db and hasattr(self.adapter.vector_db, "texts"):
             for t in self.adapter.vector_db.texts:
                 lines.append(t)
 
         return "\n".join(lines)
 
-
-# ============================================================
-# Frontend helper
-# ============================================================
 def graph_to_json(graph: nx.Graph):
     return {
         "nodes": [

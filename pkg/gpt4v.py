@@ -19,7 +19,7 @@ BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL")
 USER_SESSIONS: Dict[str, Dict[str, Any]] = {}
 SHORT_TERM_WINDOW = 15
 
-
+                                                                    
 # ------------------- Helper Functions -------------------
 
 def ensure_dirs(profile: str) -> str:
